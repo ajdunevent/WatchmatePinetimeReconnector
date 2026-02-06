@@ -4,7 +4,7 @@ After=dbus.service bluetooth.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/script -q -c "%h/.local/bin/pinetime_reconnection" /dev/null
+ExecStart=/usr/bin/script -q -c "%h/.local/bin/pinetime-reconnection" /dev/null
 Restart=always
 RestartSec=5
 
