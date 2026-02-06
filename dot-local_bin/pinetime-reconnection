@@ -1,0 +1,103 @@
+#!/bin/bash
+
+MAX_FAST_RETRIES=60
+
+RETRY_COUNT=0
+TEMP_FILE="/tmp/notifications-delayed.txt"
+MONITOR_PID=""
+
+PINETIME_MAC=$(bluetoothctl devices | cut -d ' ' -f 2 | while read -r MAC; do
+  if bluetoothctl info "$MAC" | grep -q "Name: InfiniTime"; then
+    echo "$MAC"
+    break
+  fi
+done)
+
+if [ -z "$PINETIME_MAC" ]; then
+  echo "Error: PineTime not found. Please ensure it is paired."
+  exit 1
+fi
+
+echo "Starting PineTime Monitor for $PINETIME_MAC..."
+
+stop_monitor() {
+  if [ -n "$MONITOR_PID" ]; then
+    kill "$MONITOR_PID" 2>/dev/null
+    wait "$MONITOR_PID" 2>/dev/null
+    MONITOR_PID=""
+  fi
+  > "$TEMP_FILE"
+}
+
+start_monitor() {
+  stop_monitor
+  dbus-monitor "interface='org.freedesktop.Notifications',member='Notify'" | while read -r LINE; do
+    if [[ "$LINE" == *"string"* ]]; then
+      MESSAGE=$(echo "$LINE" | grep -oP '(?<=string ").*?(?=")' | tail -n1)
+      echo "$MESSAGE" >> "$TEMP_FILE"
+    fi
+  done &
+  MONITOR_PID=$!
+}
+
+send_queued_notifications() {
+  if [ -s "$TEMP_FILE" ]; then
+    while IFS= read -r LINE; do
+      notify-send --urgency=low --expire-time=50 --transient "$LINE"
+      sleep 0.5
+    done < "$TEMP_FILE"
+    > "$TEMP_FILE"
+  fi
+}
+
+attempt_reconnect() {
+  if bluetoothctl show | grep -q "Powered: yes"; then
+    if ! bluetoothctl info "$PINETIME_MAC" | grep -q "Connected: yes"; then
+      echo "Attempting to connect to $PINETIME_MAC..."
+      bluetoothctl connect "$PINETIME_MAC" > /dev/null 2>&1
+      sleep 2
+      if bluetoothctl info "$PINETIME_MAC" | grep -q "Connected: yes"; then
+        echo "Connection successful. Refreshing WatchMate..."
+        stop_monitor
+        killall -q watchmate
+        flatpak run io.gitlab.azymohliad.WatchMate --gapplication-service > /dev/null 2>&1 &
+        sleep 2
+        send_queued_notifications
+        RETRY_COUNT=0
+        return 0
+      fi
+    else
+      echo "Device already connected."
+      stop_monitor
+      RETRY_COUNT=0
+      return 0
+    fi
+  else
+    echo "Bluetooth is powered off. Standing by..."
+  fi
+  return 1
+}
+
+stdbuf -oL bluetoothctl | while read -r LINE; do
+  if echo "$LINE" | grep -q "Device $PINETIME_MAC Connected: no"; then
+    echo "Disconnection detected!"
+    start_monitor
+    RETRY_COUNT=0
+
+    while [ $RETRY_COUNT -lt $MAX_FAST_RETRIES ]; do
+      echo "Quick reconnection attempt $((RETRY_COUNT+1))/$MAX_FAST_RETRIES..."
+      attempt_reconnect && break
+      ((RETRY_COUNT++))
+      sleep 5
+    done
+
+    if [ $RETRY_COUNT -ge $MAX_FAST_RETRIES ]; then
+      echo "Watch not found. Switching to power-saving slow-reconnection attempt mode."
+      stop_monitor
+      while true; do
+        sleep 120
+        attempt_reconnect && break
+      done
+    fi
+  fi
+done

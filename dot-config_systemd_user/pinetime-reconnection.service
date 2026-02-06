@@ -1,0 +1,12 @@
+[Unit]
+Description=PineTime Connection Monitoring and Restoration
+After=dbus.service bluetooth.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/script -q -c "%h/.local/bin/pinetime_reconnection" /dev/null
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
