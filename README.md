@@ -1,5 +1,10 @@
 # Watchmate-Pinetime Reconnector
 
+## Announcement:
+My personal PineTime has been mostly retired and this project never quite reached the functionality I was aiming for.  If you still need a reliable way to connect a PineTime to a Linux Mobile, check out these interesting projects: 
+* https://git.antisocialparadise.net/jeff/pinetime-furios
+* https://github.com/nico359/pinepal
+
 
 ### Purpose:
 * To keep the Watchmate Flatpak connected to your PineTime running InfiniTime
@@ -34,8 +39,3 @@
 * [Pine64](https://pine64.org) for the [PineTime](https://pine64.org/devices/pinetime/)
 * [JF002](https://github.com/JF002) (and contributors!) for [InifiniTime](https://github.com/InfiniTimeOrg/InfiniTime)
 * [sorry-i-am-late](https://github.com/sorry-i-am-late) for [this comment](https://github.com/azymohliad/watchmate/pull/61#issuecomment-2323510023) which inspired me
-
-
-### License
-* For now, this project adopts Alaraajavamma's ["Feel free to do what ever you want with this but no guarantees - this will probably explode your phone xD"](https://gitlab.com/Alaraajavamma/fastflx1/) license.
-* but I reserve the sole right to change it at any point for any reason and without any notice.
